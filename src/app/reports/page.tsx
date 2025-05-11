@@ -12,6 +12,7 @@ import {
   Tooltip,
   Legend,
   BarElement,
+  BarController, // Import BarController
   CategoryScale,
   LinearScale,
   PieController, // Import PieController
@@ -22,6 +23,7 @@ ChartJS.register(
   Tooltip,
   Legend,
   BarElement,
+  BarController, // Register BarController
   CategoryScale,
   LinearScale,
   PieController // Register PieController
