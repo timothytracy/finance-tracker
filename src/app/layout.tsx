@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import AuthProvider from "@/components/auth/AuthProvider";
+import Header from "@/components/header/Header";
+import AuthGuard from "@/components/auth/AuthGuard";
+import { Suspense } from "react";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -31,10 +34,16 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
+            <Suspense fallback={<div>Loading...</div>}>
+        
         <AuthProvider>
-        {children}
+        <Header />
+        <AuthGuard>{children}</AuthGuard>
+
+        
 
         </AuthProvider>
+        </Suspense>
       </body>
     </html>
   );

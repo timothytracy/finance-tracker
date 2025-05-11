@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import { signIn } from 'next-auth/react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -45,6 +45,7 @@ export default function LoginPage() {
   };
 
   return (
+    <Suspense fallback={<div>Loading...</div>}>
     <div className="flex min-h-screen flex-col items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="w-full max-w-md space-y-8">
         <div>
@@ -129,5 +130,6 @@ export default function LoginPage() {
         </p>
       </div>
     </div>
+    </Suspense>
   );
 }

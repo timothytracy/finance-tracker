@@ -228,7 +228,7 @@ export async function deleteCategory(id: number) {
 }
 
 // Get category statistics
-export async function getCategoryStatistics(type: TransactionType, startDate?: Date, endDate?: Date) {
+export async function getCategoryStatistics(type?: TransactionType, startDate?: Date, endDate?: Date) {
   try {
     const userId = await getCurrentUserId()
     

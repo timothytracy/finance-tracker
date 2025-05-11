@@ -142,55 +142,28 @@ export async function createTransaction(data: z.infer<typeof transactionSchema>)
 }
 
 // Update transaction
-export async function updateTransaction(
-  id: number,
-  data: z.infer<typeof transactionSchema>
-) {
+export async function updateTransaction(id: number, data: z.infer<typeof transactionSchema>) {
   try {
     const userId = await getCurrentUserId()
-    
-    // Validate input data
+
     const validatedData = transactionSchema.parse(data)
-    
-    // Check if transaction exists and belongs to user
+
     const existingTransaction = await prisma.transaction.findFirst({
-      where: {
-        id: id,
-        userId: userId
-      }
+      where: { id, userId },
     })
-    
+
     if (!existingTransaction) {
       return { success: false, error: 'Transaction not found' }
     }
-    
-    // Check if category exists and belongs to user
-    const category = await prisma.category.findFirst({
-      where: {
-        id: validatedData.categoryId,
-        userId: userId
-      }
-    })
-    
-    if (!category) {
-      return { success: false, error: 'Invalid category' }
-    }
-    
-    // Update transaction
+
     const transaction = await prisma.transaction.update({
-      where: {
-        id: id
-      },
-      data: validatedData
+      where: { id },
+      data: validatedData,
     })
-    
+
     revalidatePath('/dashboard')
     return { success: true, data: transaction }
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return { success: false, error: error.errors.map(e => e.message).join(', ') }
-    }
-    
     console.error('Error updating transaction:', error)
     return { success: false, error: 'Failed to update transaction' }
   }
@@ -299,3 +272,4 @@ export async function getTransactionsByCategory(categoryId: number) {
     return { success: false, error: 'Failed to fetch transactions' }
   }
 }
+

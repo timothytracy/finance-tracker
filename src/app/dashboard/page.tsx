@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 // app/dashboard/page.tsx
 'use client'
 
@@ -12,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { CalendarIcon, ArrowUpIcon, ArrowDownIcon, PlusIcon, TrashIcon } from 'lucide-react'
+import { CalendarIcon, ArrowUpIcon, ArrowDownIcon, PlusIcon, TrashIcon, PencilIcon } from 'lucide-react'
 import { TransactionType } from '@prisma/client'
 import { toast } from 'sonner'
 
@@ -21,7 +22,8 @@ import {
   getTransactions, 
   createTransaction, 
   deleteTransaction,
-  getTransactionSummary 
+  getTransactionSummary, 
+  updateTransaction
 } from '@/app/actions/transactions'
 import { 
   getCategories, 
@@ -84,6 +86,7 @@ export default function Dashboard() {
     type: 'EXPENSE' as TransactionType,
     categoryId: 0
   })
+  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null)
   
   // Redirect if not authenticated
   useEffect(() => {
@@ -136,17 +139,23 @@ export default function Dashboard() {
         throw new Error(summaryResult.error || 'Failed to fetch transaction summary')
       }
       
-      setTransactions(transactionsResult.data)
-      setCategories(categoriesResult.data)
-      setIncomeCategories(incomeCategoriesResult.data)
-      setExpenseCategories(expenseCategoriesResult.data)
-      setSummary(summaryResult.data)
+      setTransactions(
+        (transactionsResult.data || []).map(transaction => ({
+          ...transaction,
+          categoryId: transaction.categoryId ?? undefined,
+          category: transaction.category ?? undefined,
+        }))
+      )
+      setCategories(categoriesResult.data || [])
+      setIncomeCategories(incomeCategoriesResult.data || [])
+      setExpenseCategories(expenseCategoriesResult.data || [])
+      setSummary(summaryResult.data || null)
       
       // Set default category if available
-      if (expenseCategoriesResult.data.length > 0 && newTransaction.categoryId === 0) {
+      if ((expenseCategoriesResult.data ?? []).length > 0 && newTransaction.categoryId === 0) {
         setNewTransaction(prev => ({
           ...prev,
-          categoryId: expenseCategoriesResult.data[0].id
+          categoryId: (expenseCategoriesResult.data ?? [])[0]?.id || 0
         }))
       }
     } catch (err) {
@@ -236,6 +245,58 @@ export default function Dashboard() {
         : (expenseCategories[0]?.id || 0)
     })
   }
+
+  // Open the dialog for editing
+  const handleEditTransaction = (transaction: Transaction) => {
+    setEditingTransaction(transaction)
+    setNewTransaction({
+      amount: transaction.amount,
+      description: transaction.description || '',
+      date: transaction.date.toISOString().split('T')[0],
+      type: transaction.type,
+      categoryId: transaction.categoryId || 0,
+    })
+    setOpenDialog(true)
+  }
+
+  // Save or update transaction
+  const handleSaveTransaction = async (e: React.FormEvent) => {
+    e.preventDefault()
+  
+    try {
+      const transactionData = {
+        ...newTransaction,
+        date: new Date(newTransaction.date),
+        amount: Number(newTransaction.amount),
+      }
+  
+      const result = editingTransaction
+        ? await updateTransaction(editingTransaction.id, transactionData)
+        : await createTransaction(transactionData)
+  
+      if (!result.success) {
+        setError(result.error || 'Failed to save transaction')
+        toast.error(result.error || 'Failed to save transaction')
+        return
+      }
+  
+      toast.success(editingTransaction ? 'Transaction updated successfully' : 'Transaction added successfully')
+      setOpenDialog(false)
+      setEditingTransaction(null)
+      setNewTransaction({
+        amount: 0,
+        description: '',
+        date: new Date().toISOString().split('T')[0],
+        type: 'EXPENSE',
+        categoryId: 0,
+      })
+      loadData()
+    } catch (err) {
+      console.error('Error saving transaction:', err)
+      setError('Failed to save transaction. Please try again.')
+      toast.error('Failed to save transaction. Please try again.')
+    }
+  }
   
   if (status === 'loading') {
     return (
@@ -253,22 +314,26 @@ export default function Dashboard() {
         <TestAuth></TestAuth>
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold">Finance Dashboard</h1>
-        <Dialog open={openDialog} onOpenChange={setOpenDialog}>
+        <Dialog open={openDialog} onOpenChange={(open) => {
+          if (!open) setEditingTransaction(null)
+          setOpenDialog(open)
+        }}>
           <DialogTrigger asChild>
             <Button>
               <PlusIcon className="mr-2 h-4 w-4" />
-              Add Transaction
+              {editingTransaction ? 'Edit Transaction' : 'Add Transaction'}
             </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Add New Transaction</DialogTitle>
+              <DialogTitle>{editingTransaction ? 'Edit Transaction' : 'Add New Transaction'}</DialogTitle>
               <DialogDescription>
-                Enter the details of your new transaction
+                {editingTransaction ? 'Update the details of your transaction' : 'Enter the details of your new transaction'}
               </DialogDescription>
             </DialogHeader>
-            <form onSubmit={handleAddTransaction}>
+            <form onSubmit={handleSaveTransaction}>
               <div className="grid gap-4 py-4">
+                {/* Transaction Type */}
                 <div className="flex flex-col gap-2">
                   <Label htmlFor="type">Type</Label>
                   <div className="flex gap-4">
@@ -292,35 +357,13 @@ export default function Dashboard() {
                     </Label>
                   </div>
                 </div>
-                
+
+                {/* Category */}
                 <div className="flex flex-col gap-2">
-                  <Label htmlFor="amount">Amount</Label>
-                  <Input
-                    id="amount"
-                    type="number"
-                    value={newTransaction.amount}
-                    onChange={(e) => setNewTransaction({...newTransaction, amount: parseFloat(e.target.value)})}
-                    min="0"
-                    step="0.01"
-                    required
-                  />
-                </div>
-                
-                <div className="flex flex-col gap-2">
-                  <Label htmlFor="description">Description</Label>
-                  <Input
-                    id="description"
-                    value={newTransaction.description}
-                    onChange={(e) => setNewTransaction({...newTransaction, description: e.target.value})}
-                    placeholder="What was this for?"
-                  />
-                </div>
-                
-                {/* <div className="flex flex-col gap-2">
                   <Label htmlFor="category">Category</Label>
-                  <Select 
-                    value={String(newTransaction.categoryId)} 
-                    onValueChange={(value) => setNewTransaction({...newTransaction, categoryId: parseInt(value)})}
+                  <Select
+                    value={String(newTransaction.categoryId)}
+                    onValueChange={(value) => setNewTransaction({ ...newTransaction, categoryId: parseInt(value) })}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select a category" />
@@ -328,38 +371,51 @@ export default function Dashboard() {
                     <SelectContent>
                       <SelectGroup>
                         <SelectLabel>{newTransaction.type === 'INCOME' ? 'Income Categories' : 'Expense Categories'}</SelectLabel>
-                        {newTransaction.type === 'INCOME'
-                          ? incomeCategories.map(category => (
-                              <SelectItem key={category.id} value={String(category.id)}>
-                                {category.name}
-                              </SelectItem>
-                            ))
-                          : expenseCategories.map(category => (
-                              <SelectItem key={category.id} value={String(category.id)}>
-                                {category.name}
-                              </SelectItem>
-                            ))
-                        }
+                        {(newTransaction.type === 'INCOME' ? incomeCategories : expenseCategories).map((category) => (
+                          <SelectItem key={category.id} value={String(category.id)}>
+                            {category.name}
+                          </SelectItem>
+                        ))}
                       </SelectGroup>
                     </SelectContent>
                   </Select>
-                </div> */}
-                
+                </div>
+
+                {/* Other Fields */}
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="amount">Amount</Label>
+                  <Input
+                    id="amount"
+                    type="number"
+                    value={newTransaction.amount}
+                    onChange={(e) => setNewTransaction({ ...newTransaction, amount: parseFloat(e.target.value) })}
+                    min="0"
+                    step="0.01"
+                    required
+                  />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="description">Description</Label>
+                  <Input
+                    id="description"
+                    value={newTransaction.description}
+                    onChange={(e) => setNewTransaction({ ...newTransaction, description: e.target.value })}
+                    placeholder="What was this for?"
+                  />
+                </div>
                 <div className="flex flex-col gap-2">
                   <Label htmlFor="date">Date</Label>
-                  <div className="flex items-center">
-                    <Input
-                      id="date"
-                      type="date"
-                      value={newTransaction.date}
-                      onChange={(e) => setNewTransaction({...newTransaction, date: e.target.value})}
-                      required
-                    />
-                  </div>
+                  <Input
+                    id="date"
+                    type="date"
+                    value={newTransaction.date}
+                    onChange={(e) => setNewTransaction({ ...newTransaction, date: e.target.value })}
+                    required
+                  />
                 </div>
               </div>
               <DialogFooter>
-                <Button type="submit">Save Transaction</Button>
+                <Button type="submit">{editingTransaction ? 'Update Transaction' : 'Save Transaction'}</Button>
               </DialogFooter>
             </form>
           </DialogContent>
@@ -454,11 +510,10 @@ export default function Dashboard() {
                           </div>
                         </TableCell>
                         <TableCell className="text-right">
-                          <Button 
-                            variant="ghost" 
-                            size="icon"
-                            onClick={() => handleDeleteTransaction(transaction.id)}
-                          >
+                          <Button variant="ghost" size="icon" onClick={() => handleEditTransaction(transaction)}>
+                            <PencilIcon className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" onClick={() => handleDeleteTransaction(transaction.id)}>
                             <TrashIcon className="h-4 w-4" />
                           </Button>
                         </TableCell>
@@ -470,7 +525,7 @@ export default function Dashboard() {
             </CardContent>
             <CardFooter className="flex justify-center">
               <Button variant="outline" onClick={() => router.push('/transactions')}>
-                View All Transactions
+                View Transactions
               </Button>
             </CardFooter>
           </Card>
