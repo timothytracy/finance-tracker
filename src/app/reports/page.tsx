@@ -6,9 +6,27 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Chart as BarChart } from 'react-chartjs-2'
 import { Chart as PieChart } from 'react-chartjs-2'
-import { Chart as ChartJS, ArcElement, Tooltip, Legend, BarElement, CategoryScale, LinearScale } from 'chart.js'
+import {
+  Chart as ChartJS,
+  ArcElement,
+  Tooltip,
+  Legend,
+  BarElement,
+  CategoryScale,
+  LinearScale,
+  PieController, // Import PieController
+} from 'chart.js'
 
-ChartJS.register(ArcElement, Tooltip, Legend, BarElement, CategoryScale, LinearScale)
+ChartJS.register(
+  ArcElement,
+  Tooltip,
+  Legend,
+  BarElement,
+  CategoryScale,
+  LinearScale,
+  PieController // Register PieController
+)
+
 import { getTransactionSummary } from '@/app/actions/transactions'
 import { getCategoryStatistics } from '@/app/actions/categories'
 import { toast } from 'sonner'
